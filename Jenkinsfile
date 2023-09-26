@@ -38,6 +38,7 @@ pipeline {
           script{
         echo "commit hash=${GIT_COMMIT}"
         }
+        sh 'sudo aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin 265364535788.dkr.ecr.ap-south-1.amazonaws.com'
         sh 'sudo docker push ${IMAGE_URI}:${GIT_COMMIT}'
       }
     }
