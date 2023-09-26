@@ -8,7 +8,8 @@ pipeline {
     GIT_URL = 'https://github.com/SwaroopShenoy/Ansible.git'
   }
   parameters {
-    string(name: 'GIT_COMMIT', defaultValue: '')
+    //string(name: 'GIT_COMMIT', defaultValue: '')
+    string(name: 'GIT_TAG', defaultValue: '')
   }
 
   stages {
@@ -25,21 +26,18 @@ pipeline {
           script{
         //hash="${sh(returnStdout: true, script: 'cd Ansible;git rev-parse HEAD')}"
         //tag="${sh(returnStdout: true, script: 'git describe --contains "$(cd Ansible;git rev-parse HEAD)"')}"
-        tag="${sh(returnStdout: true, script: 'git describe --tags')}"
-        env.GIT_COMMIT = tag
-        echo "commit tag=${GIT_COMMIT}"
+        def tag="${sh(returnStdout: true, script: 'git describe --tags')}"
+        //env.GIT_TAG = tag
+        echo "commit tag=${tag}"
         }
-        sh 'cd Ansible;docker build -t ${IMAGE_URI}:${GIT_COMMIT} .'
+        sh 'cd Ansible;docker build -t ${IMAGE_URI}:${tag} .'
       }
     }
 
     stage('Push') {
       steps {
-          script{
-        echo "commit hash=${GIT_COMMIT}"
-        }
         sh 'sudo aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin 265364535788.dkr.ecr.ap-south-1.amazonaws.com'
-        sh 'sudo docker push ${IMAGE_URI}:${GIT_COMMIT}'
+        sh 'sudo docker push ${IMAGE_URI}:${tag}'
       }
     }
   }
