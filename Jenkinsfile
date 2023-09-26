@@ -24,7 +24,7 @@ pipeline {
       steps {
           script{
         //hash="${sh(returnStdout: true, script: 'cd Ansible;git rev-parse HEAD')}"
-        tag="${sh(returnStdout: true, script: 'git tag "$(cd Ansible;git rev-parse HEAD)"')}"
+        tag="${sh(returnStdout: true, script: 'git describe --contains "$(cd Ansible;git rev-parse HEAD)"')}"
         env.GIT_COMMIT = tag
         echo "commit tag=${GIT_COMMIT}"
         }
