@@ -24,11 +24,11 @@ pipeline {
       steps {
           script{
         //hash="${sh(returnStdout: true, script: 'cd Ansible;git rev-parse HEAD')}"
-        tag="${sh(returnStdout: true, script: 'git describe --contains "$(cd Ansible;git rev-parse HEAD)"')}"
+        //tag="${sh(returnStdout: true, script: 'git describe --contains "$(cd Ansible;git rev-parse HEAD)"')}"
+        tag="${sh(returnStdout: true, script: 'git describe --tags')}"
         env.GIT_COMMIT = tag
         echo "commit tag=${GIT_COMMIT}"
         }
-        //sh 'cp Dockerfile dockerfile'
         sh 'cd Ansible;docker build -t ${IMAGE_URI}:${GIT_COMMIT} .'
       }
     }
