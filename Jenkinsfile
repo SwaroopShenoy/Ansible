@@ -44,7 +44,15 @@ pipeline {
 
      stage('Notify') {
             steps {
-                googlechatnotification url: 'https://chat.googleapis.com/v1/spaces/AAAA22ZS4gI/messages?key=AIzaSyDdI0hCZtE6vySjMm-WEfRq3CPzqKqqsHI&token=GxnRPD10DGQA9shTvXmhG6xY7fnZK6tX9S_4wV6_aEI', message: 'message to be sent', messageFormat: 'simple', sameThreadNotification: 'false', threadKey: '', notifyFailure: 'true', notifySuccess: 'true', suppressInfoLoggers: 'true'
+                script{
+                def builds = env.BUILD_TAG
+                def statusm = currentBuild.currentResult
+                env.build=builds
+                env.status=statusm
+                }
+                echo '${build}'
+                echo '${status}'
+                googlechatnotification message: "Build ${build} for ${GIT_TAG} has completed with a ${status} status!", url: 'https://chat.googleapis.com/v1/spaces/AAAA22ZS4gI/messages?key=AIzaSyDdI0hCZtE6vySjMm-WEfRq3CPzqKqqsHI&token=GxnRPD10DGQA9shTvXmhG6xY7fnZK6tX9S_4wV6_aEI'
             }
         }
   }
