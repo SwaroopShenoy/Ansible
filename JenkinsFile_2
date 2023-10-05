@@ -1,0 +1,97 @@
+pipeline {
+    agent any
+    environment {
+        AWS_ACCOUNT_ID="021474689228"
+        AWS_DEFAULT_REGION="ap-south-1" 
+        IMAGE_REPO_NAME="platform-stride-ui"
+        IMAGE_TAG="latest"
+        REPOSITORY_URI="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/${IMAGE_REPO_NAME}"
+    }
+    
+    stages {
+        stage('Notify build start via google chat') {
+            steps {
+                
+                googlechatnotification message: "The build for image \"${IMAGE_REPO_NAME}:${env.BUILD_NUMBER}\" has been started", url: 'https://chat.googleapis.com/v1/spaces/AAAA22ZS4gI/messages?key=AIzaSyDdI0hCZtE6vySjMm-WEfRq3CPzqKqqsHI&token=GxnRPD10DGQA9shTvXmhG6xY7fnZK6tX9S_4wV6_aEI'
+            }
+        }
+        
+        stage('Git Checkout and copy Dockerfile to app directory') {
+            steps {
+                dir('app_repo') {
+                  git branch: 'main', credentialsId: 'StrideGitHub', url: 'https://github.com/strideai/platforms-stride.git'
+                  
+                  script{
+                  def commitHash = sh(script: "echo \$(git rev-parse --short HEAD)", returnStdout: true).trim()
+                  //def commitHash = sh "git rev-parse --short HEAD"
+                  env.commit=commitHash
+                  echo "${commit}"
+                  def git = sh(script: "echo \$(git config --get remote.origin.url)", returnStdout: true).trim()
+                  //def git = sh "git config --get remote.origin.url"
+                  env.giturl=git
+                  echo "${giturl}"
+                  def branch = sh(script: "echo \$(git rev-parse --abbrev-ref HEAD)", returnStdout: true).trim()
+                  //def branch = sh "git rev-parse --abbrev-ref HEAD"
+                  env.BRANCH_NAME=branch
+                  echo "${BRANCH_NAME}"
+                  }
+                  
+                  }
+                dir('devops_repo') {
+                  git branch: 'platforms-stride-frontend', credentialsId: 'StrideGitHub', url: 'https://github.com/strideai/Devops.git'
+                  }
+                dir('app_repo') {
+                sh '''
+                  cp ../devops_repo/Dockerfile .
+                '''
+                }
+            }
+        }
+        stage('Logging into AWS ECR') {
+            steps {
+              script {
+              sh "aws ecr get-login-password --region ${AWS_DEFAULT_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com"
+              }
+            }
+          }
+        
+        stage ('Build Image') {
+            steps {
+              dir('app_repo') {
+                script {
+                  dockerImage = docker.build "${IMAGE_REPO_NAME}:${IMAGE_TAG}"
+                }
+              }
+            }
+          }
+
+          stage ('Pushing to ECR') {
+            steps {
+                script {
+                  sh "docker tag ${IMAGE_REPO_NAME}:${IMAGE_TAG} ${REPOSITORY_URI}:${IMAGE_TAG}"
+                  sh "docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/${IMAGE_REPO_NAME}:${IMAGE_TAG}"
+                  sh "docker tag ${IMAGE_REPO_NAME}:${IMAGE_TAG} ${REPOSITORY_URI}:${env.BUILD_NUMBER}"
+                  sh "docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/${IMAGE_REPO_NAME}:${env.BUILD_NUMBER}"
+                }
+            }
+          }
+          
+          stage('Notify via google chat') {
+            steps {
+                script{
+                def builds = env.BUILD_TAG
+                def statusm = currentBuild.currentResult
+                
+                env.build=builds
+                env.status=statusm
+                
+                }
+                echo "${build}"
+                echo "${status}"
+                googlechatnotification message: "The image \"${IMAGE_REPO_NAME}:${env.BUILD_NUMBER}\" has been built and pushed in the AWS ECR repo.\nThe build has completed with a ${status} status! \nmore details below. \nBuild Tag: ${build} \nGit Repo url: ${giturl} \nBranch: ${BRANCH_NAME} \nGit Commit ID: ${commit} \nThe URI of the image pushed is ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/${IMAGE_REPO_NAME}:${env.BUILD_NUMBER} \nThe total duration of the build was \"${currentBuild.durationString.minus(' and counting')}\" ", notifyFailure: true, notifyAborted : true, url: 'https://chat.googleapis.com/v1/spaces/AAAA22ZS4gI/messages?key=AIzaSyDdI0hCZtE6vySjMm-WEfRq3CPzqKqqsHI&token=GxnRPD10DGQA9shTvXmhG6xY7fnZK6tX9S_4wV6_aEI'
+            }
+        }
+        
+        
+    }
+}
